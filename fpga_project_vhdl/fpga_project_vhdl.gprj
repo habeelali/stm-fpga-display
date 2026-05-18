@@ -1,0 +1,23 @@
+<?xml version="1" encoding="UTF-8"?>
+<!DOCTYPE gowin-fpga-project>
+<Project>
+    <Template>FPGA</Template>
+    <Version>5</Version>
+    <Device name="GW1NSR-4C" pn="GW1NSR-LV4CQN48PC6/I5">gw1nsr4c-000</Device>
+    <FileList>
+        <File path="src/svo_pkg.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/gowin_pllvr/gowin_pllvr.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/gowin_clkdiv/gowin_clkdiv.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/hdmi/svo_openldi.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/hdmi/svo_tmds.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/hdmi/svo_utils.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/hdmi/svo_tcard.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/hdmi/svo_enc.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/hdmi/svo_vdma.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/hdmi/svo_term.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/svo_hdmi.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/top.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/hdmi.cst" type="file.cst" enable="1"/>
+        <File path="src/hdmi.sdc" type="file.sdc" enable="1"/>
+    </FileList>
+</Project>
