@@ -214,6 +214,7 @@ architecture rtl of svo_vdma is
     signal ar_flow_ctrl   : std_logic;
 
     signal r_word_count    : unsigned(NUM_WORDS_WIDTH-1 downto 0);
+    signal r_word_count_zero : std_logic;
     signal requested_words : unsigned(FIFO_ABITS downto 0);
     signal s_rready        : std_logic;
 
@@ -363,7 +364,8 @@ begin
     end process;
 
     -- Memory R channel
-    fifo_in_data <= (r_word_count = 0) & mem_axi_rdata;
+    r_word_count_zero <= '1' when r_word_count = 0 else '0';
+    fifo_in_data <= r_word_count_zero & mem_axi_rdata;
 
     u_fifo: svo_vdma_crossclock_fifo
         generic map (WIDTH => MEM_DATA_WIDTH+1, DEPTH => FIFO_DEPTH, ABITS => FIFO_ABITS)
@@ -395,7 +397,7 @@ begin
                 ar_flow_ctrl    <= '0';
             else
                 rw := requested_words;
-                if mem_axi_arvalid = '1' and mem_axi_arready = '1' then
+                if s_arvalid = '1' and mem_axi_arready = '1' then
                     rw := rw + MEM_BURST_LEN;
                 end if;
                 if mem_axi_rvalid = '1' and s_rready = '1' then

@@ -8,6 +8,9 @@
         <File path="src/svo_pkg.vhd" type="file.vhdl" enable="1"/>
         <File path="src/gowin_pllvr/gowin_pllvr.vhd" type="file.vhdl" enable="1"/>
         <File path="src/gowin_clkdiv/gowin_clkdiv.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/spi_byte_rx.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/spi_dp_ram.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/spi_tile_display.vhd" type="file.vhdl" enable="1"/>
         <File path="src/hdmi/svo_openldi.vhd" type="file.vhdl" enable="1"/>
         <File path="src/hdmi/svo_tmds.vhd" type="file.vhdl" enable="1"/>
         <File path="src/hdmi/svo_utils.vhd" type="file.vhdl" enable="1"/>

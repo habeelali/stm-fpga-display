@@ -5,3 +5,13 @@ impl/
 *.swp
 .DS_Store
 __pycache__/
+
+# Gowin IDE per-user state
+*.gprj.user
+
+# GHDL simulation artifacts
+work-obj*.cf
+*.ghw
+
+# STM32 firmware build output
+stm32_f401re_spi_bridge/build/

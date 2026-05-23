@@ -19,6 +19,9 @@ entity svo_hdmi is
         clk_pixel   : in  std_logic;
         clk_5x_pixel: in  std_logic;
         locked      : in  std_logic;
+        spi_sclk    : in  std_logic;
+        spi_cs_n    : in  std_logic;
+        spi_mosi    : in  std_logic;
 
         tmds_clk_n  : out std_logic;
         tmds_clk_p  : out std_logic;
@@ -29,18 +32,24 @@ end entity svo_hdmi;
 
 architecture rtl of svo_hdmi is
 
-    component svo_tcard
+    component spi_tile_display
         generic (
-            SVO_MODE : svo_mode_t; SVO_FRAMERATE : integer;
-            SVO_BITS_PER_PIXEL : integer; SVO_BITS_PER_RED : integer;
-            SVO_BITS_PER_GREEN : integer; SVO_BITS_PER_BLUE : integer;
-            SVO_BITS_PER_ALPHA : integer
+            SVO_MODE : svo_mode_t;
+            SVO_BITS_PER_PIXEL : integer;
+            ENABLE_DEBUG : boolean
         );
         port (
             clk : in std_logic; resetn : in std_logic;
+            spi_sclk : in std_logic; spi_cs_n : in std_logic; spi_mosi : in std_logic;
             out_axis_tvalid : out std_logic; out_axis_tready : in std_logic;
             out_axis_tdata  : out std_logic_vector(SVO_BITS_PER_PIXEL-1 downto 0);
-            out_axis_tuser  : out std_logic_vector(0 downto 0)
+            out_axis_tuser  : out std_logic_vector(0 downto 0);
+            dbg_map_addr  : in std_logic_vector(10 downto 0);
+            dbg_map_data  : out std_logic_vector(7 downto 0);
+            dbg_tile_addr : in std_logic_vector(12 downto 0);
+            dbg_tile_data : out std_logic_vector(7 downto 0);
+            dbg_pal_addr  : in std_logic_vector(3 downto 0);
+            dbg_pal_data  : out std_logic_vector(23 downto 0)
         );
     end component;
 
@@ -115,6 +124,9 @@ architecture rtl of svo_hdmi is
     signal clk_pixel_resetn    : std_logic;
 
     signal reset_for_oser : std_logic;
+    signal unused_map_data  : std_logic_vector(7 downto 0);
+    signal unused_tile_data : std_logic_vector(7 downto 0);
+    signal unused_pal_data  : std_logic_vector(23 downto 0);
 
 begin
 
@@ -138,23 +150,29 @@ begin
 
     enc_tready <= '1';
 
-    -- Test card source
-    u_tcard: svo_tcard
+    -- SPI-controlled tile source
+    u_tile: spi_tile_display
         generic map (
-            SVO_MODE => SVO_MODE, SVO_FRAMERATE => SVO_FRAMERATE,
+            SVO_MODE => SVO_MODE,
             SVO_BITS_PER_PIXEL => SVO_BITS_PER_PIXEL,
-            SVO_BITS_PER_RED => SVO_BITS_PER_RED,
-            SVO_BITS_PER_GREEN => SVO_BITS_PER_GREEN,
-            SVO_BITS_PER_BLUE => SVO_BITS_PER_BLUE,
-            SVO_BITS_PER_ALPHA => SVO_BITS_PER_ALPHA
+            ENABLE_DEBUG => false
         )
         port map (
             clk             => clk_pixel,
-            resetn          => resetn,
+            resetn          => clk_pixel_resetn,
+            spi_sclk        => spi_sclk,
+            spi_cs_n        => spi_cs_n,
+            spi_mosi        => spi_mosi,
             out_axis_tvalid => vdma_tvalid,
             out_axis_tready => vdma_tready,
             out_axis_tdata  => vdma_tdata,
-            out_axis_tuser  => vdma_tuser
+            out_axis_tuser  => vdma_tuser,
+            dbg_map_addr    => (others => '0'),
+            dbg_map_data    => unused_map_data,
+            dbg_tile_addr   => (others => '0'),
+            dbg_tile_data   => unused_tile_data,
+            dbg_pal_addr    => (others => '0'),
+            dbg_pal_data    => unused_pal_data
         );
 
     -- Encoder

@@ -168,6 +168,8 @@ architecture rtl of svo_term is
 
     signal remove_line : std_logic;
 
+    signal s_in_axis_tready : std_logic;
+
     function next_addr(addr : unsigned; depth : integer) return unsigned is
     begin
         if to_integer(addr) = depth-1 then return (others => '0');
@@ -228,7 +230,9 @@ begin
         end if;
     end process;
 
-    in_axis_tready <= '1' when next_addr(mem_stop, MEM_DEPTH) /= mem_start and remove_line = '0' else '0';
+    in_axis_tready <= s_in_axis_tready;
+
+    s_in_axis_tready <= '1' when next_addr(mem_stop, MEM_DEPTH) /= mem_start and remove_line = '0' else '0';
 
     -- Input interface
     process(clk) begin
@@ -261,7 +265,7 @@ begin
                         mem_start      <= next_addr(mem_start, MEM_DEPTH);
                         remove_line    <= '1';
                     end if;
-                elsif in_axis_tvalid = '1' and in_axis_tready = '1' then
+                elsif in_axis_tvalid = '1' and s_in_axis_tready = '1' then
                     if unsigned(in_axis_tdata) >= 32 or in_axis_tdata = x"0A" then
                         mem_stop       <= next_addr(mem_stop, MEM_DEPTH);
                         mem_portA_addr <= mem_stop;
@@ -291,8 +295,16 @@ begin
                 p1_valid <= '0';
             elsif pipeline_en = '1' then
                 p1_valid         <= '1';
-                p1_start_of_frame <= '1' when (p1_xpos = 0 and p1_ypos = 0) else '0';
-                p1_start_of_line  <= '1' when p1_xpos = 0 else '0';
+                if (p1_xpos = 0 and p1_ypos = 0) then
+                    p1_start_of_frame <= '1';
+                else
+                    p1_start_of_frame <= '0';
+                end if;
+                if p1_xpos = 0 then
+                    p1_start_of_line <= '1';
+                else
+                    p1_start_of_line <= '0';
+                end if;
                 if p1_xpos = to_unsigned(SVO_HOR_PIXELS-1, SVO_XYBITS) then
                     p1_xpos <= (others => '0');
                     if p1_ypos = to_unsigned(SVO_VER_PIXELS-1, SVO_XYBITS) then

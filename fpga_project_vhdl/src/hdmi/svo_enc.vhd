@@ -63,7 +63,12 @@ architecture rtl of svo_enc is
 
     signal wait_for_fifos : unsigned(1 downto 0);
 
+    signal s_in_axis_tready  : std_logic;
+    signal s_out_axis_tvalid : std_logic;
+
 begin
+    in_axis_tready  <= s_in_axis_tready;
+    out_axis_tvalid <= s_out_axis_tvalid;
 
     ctrl_fifo_fill  <= ctrl_fifo_wraddr  - ctrl_fifo_rdaddr;
     pixel_fifo_fill <= pixel_fifo_wraddr - pixel_fifo_rdaddr;
@@ -104,7 +109,11 @@ begin
                     is_blank := '1';
                 end if;
 
-                is_sof := '1' when (hcursor = 0 and vcursor = 0) else '0';
+                if (hcursor = 0 and vcursor = 0) then
+                    is_sof := '1';
+                else
+                    is_sof := '0';
+                end if;
                 ctrl_fifo(to_integer(ctrl_fifo_wraddr)) <= is_blank & is_vsync & is_hsync & is_sof;
                 ctrl_fifo_wraddr <= ctrl_fifo_wraddr + 1;
 
@@ -128,17 +137,17 @@ begin
         if rising_edge(clk) then
             if resetn = '0' then
                 pixel_fifo_wraddr <= (others => '0');
-                in_axis_tready <= '0';
+                s_in_axis_tready <= '0';
             else
-                if in_axis_tvalid = '1' and in_axis_tready = '1' then
+                if in_axis_tvalid = '1' and s_in_axis_tready = '1' then
                     pixel_fifo(to_integer(pixel_fifo_wraddr)) <= in_axis_tuser & in_axis_tdata;
                     pixel_fifo_wraddr <= pixel_fifo_wraddr + 1;
                 end if;
                 if (pixel_fifo_wraddr + 2 = pixel_fifo_rdaddr) or
                    (pixel_fifo_wraddr + 1 = pixel_fifo_rdaddr) then
-                    in_axis_tready <= '0';
+                    s_in_axis_tready <= '0';
                 else
-                    in_axis_tready <= '1';
+                    s_in_axis_tready <= '1';
                 end if;
             end if;
         end if;
@@ -193,7 +202,7 @@ begin
             if resetn = '0' then
                 wait_for_fifos   <= (others => '0');
                 out_fifo_rdaddr  <= (others => '0');
-                out_axis_tvalid  <= '0';
+                s_out_axis_tvalid  <= '0';
                 out_axis_tdata   <= (others => '0');
                 out_axis_tuser   <= (others => '0');
             elsif wait_for_fifos < 3 or out_fifo_fill = 0 then
@@ -204,14 +213,14 @@ begin
                 end if;
             else
                 next_rd := out_fifo_rdaddr;
-                if out_axis_tvalid = '1' and out_axis_tready = '1' then
+                if s_out_axis_tvalid = '1' and out_axis_tready = '1' then
                     next_rd := next_rd + 1;
                 end if;
 
                 if next_rd /= out_fifo_wraddr then
-                    out_axis_tvalid <= '1';
+                    s_out_axis_tvalid <= '1';
                 else
-                    out_axis_tvalid <= '0';
+                    s_out_axis_tvalid <= '0';
                 end if;
                 out_axis_tuser <= out_fifo(to_integer(next_rd))(SVO_BITS_PER_PIXEL+3 downto SVO_BITS_PER_PIXEL);
                 out_axis_tdata <= out_fifo(to_integer(next_rd))(SVO_BITS_PER_PIXEL-1 downto 0);

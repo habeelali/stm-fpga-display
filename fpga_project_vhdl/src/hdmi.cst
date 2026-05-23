@@ -15,3 +15,13 @@ IO_PORT "resetn" PULL_MODE=UP;
 
 IO_LOC "clk" 45;
 IO_PORT "clk" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+// SPI input on regular 3.3 V DVP/header pins.
+// The MSPI-labeled pins are dedicated in this package and cannot be used
+// as ordinary user I/O by Place & Route.
+IO_LOC "spi_sclk" 41;
+IO_PORT "spi_sclk" IO_TYPE=LVCMOS33 PULL_MODE=DOWN;
+IO_LOC "spi_cs_n" 42;
+IO_PORT "spi_cs_n" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+IO_LOC "spi_mosi" 43;
+IO_PORT "spi_mosi" IO_TYPE=LVCMOS33 PULL_MODE=DOWN;

@@ -7,6 +7,9 @@ entity top is
     port (
         clk       : in  std_logic;
         resetn    : in  std_logic;
+        spi_sclk  : in  std_logic;
+        spi_cs_n  : in  std_logic;
+        spi_mosi  : in  std_logic;
         tmds_clk_n: out std_logic;
         tmds_clk_p: out std_logic;
         tmds_d_n  : out std_logic_vector(2 downto 0);
@@ -56,6 +59,9 @@ architecture rtl of top is
             clk_pixel    : in  std_logic;
             clk_5x_pixel : in  std_logic;
             locked       : in  std_logic;
+            spi_sclk     : in  std_logic;
+            spi_cs_n     : in  std_logic;
+            spi_mosi     : in  std_logic;
             tmds_clk_n   : out std_logic;
             tmds_clk_p   : out std_logic;
             tmds_d_n     : out std_logic_vector(2 downto 0);
@@ -107,6 +113,9 @@ begin
             clk_pixel    => clk_p,
             clk_5x_pixel => clk_p5,
             locked       => pll_lock,
+            spi_sclk     => spi_sclk,
+            spi_cs_n     => spi_cs_n,
+            spi_mosi     => spi_mosi,
             tmds_clk_n   => tmds_clk_n,
             tmds_clk_p   => tmds_clk_p,
             tmds_d_n     => tmds_d_n,

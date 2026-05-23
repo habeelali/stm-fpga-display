@@ -119,8 +119,24 @@ architecture rtl of svo_tcard is
     signal xoff    : unsigned(4 downto 0);
     signal yoff    : unsigned(4 downto 0);
     signal rng     : unsigned(31 downto 0);
+    signal s_out_axis_tvalid : std_logic;
+    signal s_out_axis_tdata  : std_logic_vector(SVO_BITS_PER_PIXEL-1 downto 0);
+    signal s_out_axis_tuser  : std_logic_vector(0 downto 0);
+
+    -- Animation state (adapted from Project F "Racing the Beam")
+    constant BOUNCE_SIZE  : integer := 80;
+    constant BOUNCE_SPEED : integer := 2;
+    signal frame_ctr   : unsigned(7 downto 0);
+    signal frame_tick  : std_logic;
+    signal bounce_x    : unsigned(SVO_XYBITS-1 downto 0);
+    signal bounce_y    : unsigned(SVO_XYBITS-1 downto 0);
+    signal bounce_dx   : std_logic;
+    signal bounce_dy   : std_logic;
 
 begin
+    out_axis_tvalid <= s_out_axis_tvalid;
+    out_axis_tdata  <= s_out_axis_tdata;
+    out_axis_tuser  <= s_out_axis_tuser;
 
     process(clk)
         variable r   : unsigned(SVO_BITS_PER_RED-1   downto 0);
@@ -142,10 +158,59 @@ begin
                 xoff    <= to_unsigned(HOFFSET, 5);
                 yoff    <= to_unsigned(VOFFSET, 5);
                 rng     <= (others => '0');
-                out_axis_tvalid <= '0';
-                out_axis_tdata  <= (others => '0');
-                out_axis_tuser  <= (others => '0');
-            elsif out_axis_tvalid = '0' or out_axis_tready = '1' then
+                s_out_axis_tvalid <= '0';
+                s_out_axis_tdata  <= (others => '0');
+                s_out_axis_tuser  <= (others => '0');
+                frame_ctr   <= (others => '0');
+                frame_tick  <= '0';
+                bounce_x    <= to_unsigned(100, SVO_XYBITS);
+                bounce_y    <= to_unsigned(100, SVO_XYBITS);
+                bounce_dx   <= '0';
+                bounce_dy   <= '0';
+            elsif s_out_axis_tvalid = '0' or out_axis_tready = '1' then
+                -- Frame tick: one cycle at start of each frame
+                if hcursor = 0 and vcursor = 0 then
+                    frame_tick <= '1';
+                else
+                    frame_tick <= '0';
+                end if;
+
+                -- Bouncing box position update (Project F "Bounce")
+                if frame_tick = '1' then
+                    frame_ctr <= frame_ctr + 1;
+                    -- horizontal
+                    if bounce_dx = '0' then
+                        if bounce_x + BOUNCE_SIZE + BOUNCE_SPEED >= SVO_HOR_PIXELS then
+                            bounce_x  <= to_unsigned(SVO_HOR_PIXELS - BOUNCE_SIZE, SVO_XYBITS);
+                            bounce_dx <= '1';
+                        else
+                            bounce_x <= bounce_x + BOUNCE_SPEED;
+                        end if;
+                    else
+                        if bounce_x < BOUNCE_SPEED then
+                            bounce_x  <= (others => '0');
+                            bounce_dx <= '0';
+                        else
+                            bounce_x <= bounce_x - BOUNCE_SPEED;
+                        end if;
+                    end if;
+                    -- vertical
+                    if bounce_dy = '0' then
+                        if bounce_y + BOUNCE_SIZE + BOUNCE_SPEED >= SVO_VER_PIXELS then
+                            bounce_y  <= to_unsigned(SVO_VER_PIXELS - BOUNCE_SIZE, SVO_XYBITS);
+                            bounce_dy <= '1';
+                        else
+                            bounce_y <= bounce_y + BOUNCE_SPEED;
+                        end if;
+                    else
+                        if bounce_y < BOUNCE_SPEED then
+                            bounce_y  <= (others => '0');
+                            bounce_dy <= '0';
+                        else
+                            bounce_y <= bounce_y - BOUNCE_SPEED;
+                        end if;
+                    end if;
+                end if;
                 rng_v := rng;
                 xc := to_integer(x_cell);
                 yc := to_integer(y_cell);
@@ -153,7 +218,7 @@ begin
                 yo := to_integer(yoff);
 
                 if hcursor = 0 then
-                    rng_v := rng_v xor to_unsigned(to_integer(y_cell) xor 123456789, 32);
+                    rng_v := to_unsigned(to_integer(y_cell), 32) xor to_unsigned(123456789, 32);
                 end if;
 
                 -- xorshift32
@@ -186,9 +251,9 @@ begin
                     -- carry over from registered signals not recalculated here;
                     -- will be overwritten by color bars below if applicable
                     -- (tdata from previous cycle retained in out_axis_tdata)
-                    r := unsigned(out_axis_tdata(SVO_BITS_PER_RED-1 downto 0));
-                    g := unsigned(out_axis_tdata(SVO_BITS_PER_RED+SVO_BITS_PER_GREEN-1 downto SVO_BITS_PER_RED));
-                    b := unsigned(out_axis_tdata(SVO_BITS_PER_RED+SVO_BITS_PER_GREEN+SVO_BITS_PER_BLUE-1 downto SVO_BITS_PER_RED+SVO_BITS_PER_GREEN));
+                    r := unsigned(s_out_axis_tdata(SVO_BITS_PER_RED-1 downto 0));
+                    g := unsigned(s_out_axis_tdata(SVO_BITS_PER_RED+SVO_BITS_PER_GREEN-1 downto SVO_BITS_PER_RED));
+                    b := unsigned(s_out_axis_tdata(SVO_BITS_PER_RED+SVO_BITS_PER_GREEN+SVO_BITS_PER_BLUE-1 downto SVO_BITS_PER_RED+SVO_BITS_PER_GREEN));
                 end if;
 
                 if xoff = "11111" or yoff = "11111" then
@@ -198,6 +263,14 @@ begin
                 end if;
 
                 if SVO_VER_PIXELS >= 480 then
+                    -- Raster bar overlay (Project F "Raster Bars"): animated horizontal bands in background
+                    if hcursor < SVO_HOR_PIXELS and vcursor < SVO_VER_PIXELS then
+                        if to_integer(vcursor + frame_ctr) mod 16 < 3 then
+                            r := resize(frame_ctr(7 downto 5) & "00000", SVO_BITS_PER_RED);
+                            g := resize(frame_ctr(7 downto 5) & "00000", SVO_BITS_PER_GREEN);
+                            b := resize(not frame_ctr(7 downto 5) & "00000", SVO_BITS_PER_BLUE);
+                        end if;
+                    end if;
                     if xc > X1 and xc <= X2 and yc > Y1 and yc <= Y2 then r := to_unsigned(63, SVO_BITS_PER_RED); g := (others => '0'); b := (others => '0'); end if;
                     if xc > X1 and xc <= X2 and yc > Y3 and yc <= Y4 then r := (others => '0'); g := to_unsigned(63, SVO_BITS_PER_GREEN); b := (others => '0'); end if;
                     if xc > X1 and xc <= X2 and yc > Y5 and yc <= Y6 then r := (others => '0'); g := (others => '0'); b := to_unsigned(63, SVO_BITS_PER_BLUE); end if;
@@ -208,18 +281,38 @@ begin
                     if yoff = "11111" and (yc = Y2 or yc = Y4 or yc = Y6) then r := (others => '0'); g := (others => '0'); b := (others => '0'); end if;
                 end if;
 
-                out_axis_tvalid <= '1';
+                s_out_axis_tvalid <= '1';
+
+                -- Bouncing box rendering (Project F "Bounce")
+                if hcursor >= bounce_x and hcursor < bounce_x + BOUNCE_SIZE and
+                   vcursor >= bounce_y and vcursor < bounce_y + BOUNCE_SIZE then
+                    -- Box fill: cycling colour based on frame counter
+                    r := resize(frame_ctr(7 downto 2) & "00", SVO_BITS_PER_RED);
+                    g := resize(frame_ctr(6 downto 1) & "00", SVO_BITS_PER_GREEN);
+                    b := resize(frame_ctr(5 downto 0) & "00", SVO_BITS_PER_BLUE);
+                    -- Box border
+                    if hcursor = bounce_x or hcursor = bounce_x + BOUNCE_SIZE - 1 or
+                       vcursor = bounce_y or vcursor = bounce_y + BOUNCE_SIZE - 1 then
+                        r := (others => '1');
+                        g := (others => '1');
+                        b := (others => '1');
+                    end if;
+                end if;
                 if (xc = 1 or xc = HOR_CELLS-2) and (yc = 1 or yc = VER_CELLS-2) then
                     bmp_idx := yo * 32 + xo;
                     if bolt_bitmap(bmp_idx) = '1' then
-                        out_axis_tdata <= (others => '1');
+                        s_out_axis_tdata <= (others => '1');
                     else
-                        out_axis_tdata <= (others => '0');
+                        s_out_axis_tdata <= (others => '0');
                     end if;
                 else
-                    out_axis_tdata <= std_logic_vector(b) & std_logic_vector(g) & std_logic_vector(r);
+                    s_out_axis_tdata <= std_logic_vector(b) & std_logic_vector(g) & std_logic_vector(r);
                 end if;
-                out_axis_tuser(0) <= '1' when (hcursor = 0 and vcursor = 0) else '0';
+                if (hcursor = 0 and vcursor = 0) then
+                    s_out_axis_tuser(0) <= '1';
+                else
+                    s_out_axis_tuser(0) <= '0';
+                end if;
 
                 rng <= rng_v;
 

@@ -479,7 +479,9 @@ architecture rtl of svo_rect is
     signal in_x : std_logic;
     signal in_y : std_logic;
     signal border : std_logic;
+    signal s_out_axis_tvalid : std_logic;
 begin
+    out_axis_tvalid <= s_out_axis_tvalid;
     on_x   <= '1' when (x = unsigned(x1)) or (x = unsigned(x2)) else '0';
     on_y   <= '1' when (y = unsigned(y1)) or (y = unsigned(y2)) else '0';
     border <= in_x and in_y and (on_x or on_y);
@@ -492,9 +494,9 @@ begin
                 y    <= (others => '0');
                 in_x <= '0';
                 in_y <= '0';
-                out_axis_tvalid <= '0';
+                s_out_axis_tvalid <= '0';
             else
-                if out_axis_tvalid = '1' and out_axis_tready = '1' then
+                if s_out_axis_tvalid = '1' and out_axis_tready = '1' then
                     if x = to_unsigned(SVO_HOR_PIXELS-1, SVO_XYBITS) then
                         x <= (others => '0');
                         if y = to_unsigned(SVO_VER_PIXELS-1, SVO_XYBITS) then
@@ -512,9 +514,13 @@ begin
                 if x = unsigned(x2) then in_x <= '0'; end if;
                 if y = unsigned(y2) and x = unsigned(x2) then in_y <= '0'; end if;
 
-                out_axis_tvalid    <= '1';
+                s_out_axis_tvalid    <= '1';
                 out_axis_tdata     <= (others => not border);
-                out_axis_tuser(0)  <= '1' when (x = 0 and y = 0) else '0';
+                if (x = 0 and y = 0) then
+                    out_axis_tuser(0) <= '1';
+                else
+                    out_axis_tuser(0) <= '0';
+                end if;
                 out_axis_tuser(1)  <= in_x and in_y;
                 out_axis_tuser(2)  <= border;
             end if;
